@@ -71,22 +71,26 @@ P.p.s На самом деле вроде можно и localhost, можете 
 
 ### Если вы запускаете через Docker
 #### Вариант 1: Использование готового скрипта внутри контейнера
-```bash 
-# Копируем файл данных в контейнер
-docker cp ./test_data/test_data.sql database-core-database-1:/tmp/test_data.sql
-```
+
+[//]: # (```bash )
+
+[//]: # (# Копируем файл данных в контейнер)
+
+[//]: # (docker cp ./test_data/test_data.sql database-core-database-1:/tmp/test_data.sql)
+
+[//]: # (```)
 ```bash
 # Выполняем напрямую
 docker exec -i database-core-database-1 psql -U root -d db -f /tmp/test_data.sql
 ```
 
-### Вариант 2: Прямая загрузка через psql в контейнере
+#### Вариант 2: Прямая загрузка через psql в контейнере
 Используя строку bash, запустите из папки с проектом:
 ```bash 
 docker exec -i database-core-database-1 psql -U root -d db < ./test_data/test_data.sql
 ```
 
-### Вариант 3: Через Adminer (web-интерфейс)
+#### Вариант 3: Через Adminer (web-интерфейс)
 1) Откройте http://localhost:1000
 
 2) Авторизуйтесь
