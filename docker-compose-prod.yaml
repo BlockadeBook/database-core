@@ -1,0 +1,10 @@
+services:
+  fastapi:
+    build:
+      context: .
+      dockerfile: ./docker/fastapi/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - '8080:8080'
+    network_mode: host
