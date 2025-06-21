@@ -44,3 +44,12 @@ def create(note: NoteDto, db: Session = Depends(get_db)):
 def create_tag(tag: TagDto, db: Session = Depends(get_db)):
     service = NoteService(db)
     service.create_tag(tag)
+
+@router.get("/detailed/{id}")
+def get_detailed(id: int, db: Session = Depends(get_db)):
+    service = NoteService(db)
+    res = service.get_detailed_by_id(id)
+    if res is None:
+        raise HTTPException(404)
+    return res
+

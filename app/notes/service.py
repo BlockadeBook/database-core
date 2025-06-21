@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.authors.models import Author
 from app.notes.dtos import DiaryDto, NoteDto, TagDto
 from app.notes.models import Diary, Note, NoteToPoint, NoteType, Tag, Temporality
+from app.point.models import Point, PointCoordinates
 
 
 class NoteService:
@@ -22,7 +23,7 @@ class NoteService:
         return self.db.query(Note).all()
 
     def get_by_id(self, id: int, extended: bool):
-        if not extended:
+        if extended:
             return (
                 self.db.query(
                     Note.note_id,
@@ -55,6 +56,32 @@ class NoteService:
             .first()
             ._asdict()  # type: ignore
         )
+
+    def get_detailed_by_id(self, id: int):
+        return (self.db.query(
+            Note.id,
+            Note.citation,
+            Note.created_at,
+            Note.note_type,
+            Note.temporality,
+            PointCoordinates.latitude,
+            PointCoordinates.longitude,
+
+            Author.first_name,
+            Author.middle_name,
+            Author.last_name,
+            Author.birth_date,
+            Author.education,
+            Author.sex,
+            Author.family_status,
+            Author.political_parties,
+
+            Point.rayon,
+            Point.street,
+            Point.building,
+            Point.point_type
+        )
+                .filter(Note.note_id == id).first())._asdict()
 
     def create_note(self, dto: NoteDto):
         diary = self.db.query(Diary).filter(Diary.author_id == dto.author_id).first()
