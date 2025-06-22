@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 
-from app.authors.models import Author
+from app.authors.models import Author, Education
 from app.notes.dtos import DiaryDto, NoteDto, TagDto
 from app.notes.models import Diary, Note, NoteToPoint, NoteType, Tag, Temporality
 from app.point.models import Point, PointCoordinates
@@ -23,7 +23,7 @@ class NoteService:
         return self.db.query(Note).all()
 
     def get_by_id(self, id: int, extended: bool):
-        if extended:
+        if not extended:
             return (
                 self.db.query(
                     Note.note_id,
@@ -58,30 +58,20 @@ class NoteService:
         )
 
     def get_detailed_by_id(self, id: int):
-        return (self.db.query(
-            Note.id,
-            Note.citation,
-            Note.created_at,
-            Note.note_type,
-            Note.temporality,
-            PointCoordinates.latitude,
-            PointCoordinates.longitude,
-
-            Author.first_name,
-            Author.middle_name,
-            Author.last_name,
-            Author.birth_date,
-            Author.education,
-            Author.sex,
-            Author.family_status,
-            Author.political_parties,
-
-            Point.rayon,
-            Point.street,
-            Point.building,
-            Point.point_type
-        )
-                .filter(Note.note_id == id).first())._asdict()
+        # выглядит страшно, но какое тз такое хз
+        res = (self.db.query(
+            Note,
+            Author
+        ).join(Diary, Diary.diary_id == Note.diary_id)
+               .join(Author, Author.author_id == Diary.author_id)
+               .options(joinedload(Note.note_type))
+               .options(joinedload(Note.tags))
+               .options(joinedload(Author.education))
+               .options(joinedload(Author.family_status))
+               .options(joinedload(Note.points).joinedload(Point.point_coordinates))
+               .filter(Note.note_id == id).first())
+        res = res._asdict()
+        return res
 
     def create_note(self, dto: NoteDto):
         diary = self.db.query(Diary).filter(Diary.author_id == dto.author_id).first()
