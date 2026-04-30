@@ -130,3 +130,32 @@ class NoteService:
         self.db.commit()
         self.db.refresh(new_tag)
         return new_tag
+
+    def get_all_diaries(self):
+        return (
+            self.db.query(Diary)
+            .options(joinedload(Diary.author))
+            .all()
+        )
+
+    def get_diary_by_id(self, id: int):
+        return (
+            self.db.query(Diary)
+            .filter(Diary.diary_id == id)
+            .options(joinedload(Diary.author))
+            .first()
+        )
+
+    def get_notes_by_diary(self, diary_id: int, extended: bool):
+        query = (
+            self.db.query(Note)
+            .filter(Note.diary_id == diary_id)
+        )
+        if extended:
+            query = query.options(
+                joinedload(Note.temporality),
+                joinedload(Note.tags),
+                joinedload(Note.note_type),
+                joinedload(Note.points),
+            )
+        return query.all()

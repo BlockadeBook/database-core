@@ -15,6 +15,12 @@ def create(dto: PointDto, db: Session = Depends(get_db)):
     return service.create(dto)
 
 
+@router.get("/")
+def get_all(db: Session = Depends(get_db)):
+    service = PointService(db)
+    return service.get_all()
+
+
 @router.get("/{id}")
 def get_one(id: int, extended: bool = True, db: Session = Depends(get_db)):
     service = PointService(db)

@@ -46,6 +46,19 @@ class PointService:
         self.db.refresh(point)
         return point
 
+    def get_all(self):
+        return (
+            self.db.query(Point)
+            .options(
+                joinedload(Point.rayon),
+                joinedload(Point.point_coordinates),
+                joinedload(Point.point_type),
+                joinedload(Point.point_subtype),
+                joinedload(Point.point_subsubtype),
+            )
+            .all()
+        )
+
     def get_by_id(self, id: int, extended: bool):
         if not extended:
             res = (
