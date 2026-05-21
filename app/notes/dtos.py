@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -48,3 +48,22 @@ class NoteDto(BaseModel):
 
 class TagDto(BaseModel):
     name: str
+
+
+class NoteFilterParams(BaseModel):
+    search: Optional[str] = None
+    note_type_ids: List[int] = []
+    temporality_ids: List[int] = []
+    diary_ids: List[int] = []
+    author_ids: List[int] = []
+    tag_ids: List[int] = []
+    point_ids: List[int] = []
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+
+
+class DiaryFilterParams(BaseModel):
+    author_ids: List[int] = []
+    search: Optional[str] = None
+    started_after: Optional[date] = None
+    finished_before: Optional[date] = None

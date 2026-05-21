@@ -1,6 +1,6 @@
 from datetime import date
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -21,6 +21,19 @@ from app.base.utils import check_id_exists_raise
 class SexEnum(str, Enum):
     MALE = "M"
     FEMALE = "F"
+
+
+class AuthorFilterParams(BaseModel):
+    search: Optional[str] = None
+    sex: Optional[SexEnum] = None
+    has_children: Optional[bool] = None
+    family_status_ids: List[int] = []
+    social_class_ids: List[int] = []
+    nationality_ids: List[int] = []
+    religion_ids: List[int] = []
+    education_ids: List[int] = []
+    occupation_ids: List[int] = []
+    political_party_ids: List[int] = []
 
 
 class AuthorDto(BaseModel):

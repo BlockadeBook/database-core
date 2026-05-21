@@ -1,9 +1,16 @@
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.authors.dtos import AuthorDto
+from app.authors.dtos import AuthorDto, AuthorFilterParams
 from app.authors.models import (
     Author,
+    AuthorToEducation,
+    AuthorToNationality,
+    AuthorToOccupation,
+    AuthorToPoliticalParty,
+    AuthorToReligion,
+    AuthorToSocialClass,
     Card,
     Education,
     FamilyStatus,
@@ -35,8 +42,52 @@ class AuthorService:
             "cards": self.db.query(Card).all(),
         }
 
-    def get_all(self):
-        return self.db.query(Author).all()
+    def get_all(self, filters: AuthorFilterParams | None = None):
+        q = self.db.query(Author)
+        if filters is None:
+            return q.all()
+
+        if filters.search:
+            pattern = f"%{filters.search}%"
+            q = q.filter(
+                or_(
+                    Author.first_name.ilike(pattern),
+                    Author.middle_name.ilike(pattern),
+                    Author.last_name.ilike(pattern),
+                )
+            )
+        if filters.sex:
+            q = q.filter(Author.sex == filters.sex)
+        if filters.has_children is not None:
+            q = q.filter(Author.has_children == filters.has_children)
+        if filters.family_status_ids:
+            q = q.filter(Author.family_status_id.in_(filters.family_status_ids))
+        if filters.social_class_ids:
+            q = q.join(AuthorToSocialClass).filter(
+                AuthorToSocialClass.social_class_id.in_(filters.social_class_ids)
+            )
+        if filters.nationality_ids:
+            q = q.join(AuthorToNationality).filter(
+                AuthorToNationality.nationality_id.in_(filters.nationality_ids)
+            )
+        if filters.religion_ids:
+            q = q.join(AuthorToReligion).filter(
+                AuthorToReligion.religion_id.in_(filters.religion_ids)
+            )
+        if filters.education_ids:
+            q = q.join(AuthorToEducation).filter(
+                AuthorToEducation.education_id.in_(filters.education_ids)
+            )
+        if filters.occupation_ids:
+            q = q.join(AuthorToOccupation).filter(
+                AuthorToOccupation.occupation_id.in_(filters.occupation_ids)
+            )
+        if filters.political_party_ids:
+            q = q.join(AuthorToPoliticalParty).filter(
+                AuthorToPoliticalParty.political_party_id.in_(filters.political_party_ids)
+            )
+
+        return q.distinct().all()
 
     def get_by_id(self, id: int, extended: bool):
         if not extended:

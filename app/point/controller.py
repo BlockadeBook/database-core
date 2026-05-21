@@ -1,11 +1,29 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.base.query_params import parse_int_csv
+from app.base.taxonomy import make_named_taxonomy_router
 from app.database import get_db
-from app.point.dtos import CoordinatesDto, PointDto
+from app.point.dtos import (
+    CoordinatesDto,
+    PointDto,
+    PointFilterParams,
+    PointSubSubTypeDto,
+    PointSubTypeDto,
+    PointTypeDto,
+)
+from app.point.models import Rayon
 from app.point.service import PointService
 
 router = APIRouter(prefix="/points")
+
+
+@router.get("/filters")
+def get_filters(db: Session = Depends(get_db)):
+    service = PointService(db)
+    return service.get_filters()
 
 
 @router.post("/")
@@ -16,9 +34,23 @@ def create(dto: PointDto, db: Session = Depends(get_db)):
 
 
 @router.get("/")
-def get_all(db: Session = Depends(get_db)):
+def get_all(
+    search: Optional[str] = None,
+    rayon_ids: Optional[str] = None,
+    point_type_ids: Optional[str] = None,
+    point_subtype_ids: Optional[str] = None,
+    point_subsubtype_ids: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    filters = PointFilterParams(
+        search=search,
+        rayon_ids=parse_int_csv(rayon_ids),
+        point_type_ids=parse_int_csv(point_type_ids),
+        point_subtype_ids=parse_int_csv(point_subtype_ids),
+        point_subsubtype_ids=parse_int_csv(point_subsubtype_ids),
+    )
     service = PointService(db)
-    return service.get_all()
+    return service.get_all(filters)
 
 
 @router.get("/{id}")
@@ -53,7 +85,28 @@ def get_coordinates(id: int, db: Session = Depends(get_db)):
     return service.get_coordinates(id)
 
 
-@router.get("/filters")
-def get_filters(db: Session = Depends(get_db)):
+# Taxonomies — rayon is name-only
+router.include_router(
+    make_named_taxonomy_router(Rayon, "rayon_id"), prefix="/rayons"
+)
+
+
+# Point type / subtype / subsubtype have extra fields, custom routes
+@router.post("/point-types", status_code=201)
+def create_point_type(dto: PointTypeDto, db: Session = Depends(get_db)):
     service = PointService(db)
-    return service.get_filters()
+    return service.create_point_type(dto)
+
+
+@router.post("/point-subtypes", status_code=201)
+def create_point_subtype(dto: PointSubTypeDto, db: Session = Depends(get_db)):
+    dto.validate_ids(db)
+    service = PointService(db)
+    return service.create_point_subtype(dto)
+
+
+@router.post("/point-subsubtypes", status_code=201)
+def create_point_subsubtype(dto: PointSubSubTypeDto, db: Session = Depends(get_db)):
+    dto.validate_ids(db)
+    service = PointService(db)
+    return service.create_point_subsubtype(dto)

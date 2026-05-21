@@ -1,8 +1,23 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.authors.models import Author, Education
-from app.notes.dtos import DiaryDto, NoteDto, TagDto
-from app.notes.models import Diary, Note, NoteToPoint, NoteType, Tag, Temporality
+from app.notes.dtos import (
+    DiaryDto,
+    DiaryFilterParams,
+    NoteDto,
+    NoteFilterParams,
+    TagDto,
+)
+from app.notes.models import (
+    Diary,
+    Note,
+    NoteToPoint,
+    NoteToTag,
+    NoteType,
+    Tag,
+    Temporality,
+)
 from app.point.models import Point, PointCoordinates
 
 
@@ -19,8 +34,35 @@ class NoteService:
             "temporalities": self.db.query(Temporality).all(),
         }
 
-    def get_all(self):
-        return self.db.query(Note).all()
+    def get_all(self, filters: NoteFilterParams | None = None):
+        q = self.db.query(Note)
+        if filters is None:
+            return q.all()
+
+        if filters.search:
+            pattern = f"%{filters.search}%"
+            q = q.filter(
+                or_(Note.citation.ilike(pattern), Note.source.ilike(pattern))
+            )
+        if filters.note_type_ids:
+            q = q.filter(Note.note_type_id.in_(filters.note_type_ids))
+        if filters.temporality_ids:
+            q = q.filter(Note.temporality_id.in_(filters.temporality_ids))
+        if filters.diary_ids:
+            q = q.filter(Note.diary_id.in_(filters.diary_ids))
+        if filters.author_ids:
+            q = q.join(Diary, Note.diary_id == Diary.diary_id).filter(
+                Diary.author_id.in_(filters.author_ids)
+            )
+        if filters.tag_ids:
+            q = q.join(NoteToTag).filter(NoteToTag.tag_id.in_(filters.tag_ids))
+        if filters.point_ids:
+            q = q.join(NoteToPoint).filter(NoteToPoint.point_id.in_(filters.point_ids))
+        if filters.date_from:
+            q = q.filter(Note.created_at >= filters.date_from)
+        if filters.date_to:
+            q = q.filter(Note.created_at <= filters.date_to)
+        return q.distinct().all()
 
     def get_by_id(self, id: int, extended: bool):
         if not extended:
@@ -131,12 +173,41 @@ class NoteService:
         self.db.refresh(new_tag)
         return new_tag
 
-    def get_all_diaries(self):
-        return (
-            self.db.query(Diary)
-            .options(joinedload(Diary.author))
-            .all()
-        )
+    def get_all_diaries(self, filters: DiaryFilterParams | None = None):
+        q = self.db.query(Diary).options(joinedload(Diary.author))
+        if filters is None:
+            return q.all()
+
+        if filters.author_ids:
+            q = q.filter(Diary.author_id.in_(filters.author_ids))
+        if filters.search:
+            pattern = f"%{filters.search}%"
+            q = q.filter(Diary.source.ilike(pattern))
+        if filters.started_after:
+            q = q.filter(Diary.started_at >= filters.started_after)
+        if filters.finished_before:
+            q = q.filter(Diary.finished_at <= filters.finished_before)
+        return q.all()
+
+    def update_diary(self, id: int, dto: DiaryDto):
+        diary = self.db.query(Diary).filter(Diary.diary_id == id).first()
+        if diary is None:
+            return None
+        diary.author_id = dto.author_id
+        diary.started_at = dto.started_at
+        diary.finished_at = dto.finished_at
+        diary.source = dto.source
+        self.db.commit()
+        self.db.refresh(diary)
+        return diary
+
+    def delete_diary(self, id: int) -> bool:
+        diary = self.db.query(Diary).filter(Diary.diary_id == id).first()
+        if diary is None:
+            return False
+        self.db.delete(diary)
+        self.db.commit()
+        return True
 
     def get_diary_by_id(self, id: int):
         return (

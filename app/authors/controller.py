@@ -1,8 +1,22 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.authors.dtos import AuthorDto
+from app.authors.dtos import AuthorDto, AuthorFilterParams, SexEnum
+from app.authors.models import (
+    Card,
+    Education,
+    FamilyStatus,
+    Nationality,
+    Occupation,
+    PoliticalParty,
+    Religion,
+    SocialClass,
+)
 from app.authors.service import AuthorService
+from app.base.query_params import parse_int_csv
+from app.base.taxonomy import make_named_taxonomy_router
 from app.database import get_db
 
 router = APIRouter(prefix="/authors")
@@ -15,9 +29,33 @@ def get_filters(db: Session = Depends(get_db)):
 
 
 @router.get("/")
-def get_all(db: Session = Depends(get_db)):
+def get_all(
+    search: Optional[str] = None,
+    sex: Optional[SexEnum] = None,
+    has_children: Optional[bool] = None,
+    family_status_ids: Optional[str] = None,
+    social_class_ids: Optional[str] = None,
+    nationality_ids: Optional[str] = None,
+    religion_ids: Optional[str] = None,
+    education_ids: Optional[str] = None,
+    occupation_ids: Optional[str] = None,
+    political_party_ids: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    filters = AuthorFilterParams(
+        search=search,
+        sex=sex,
+        has_children=has_children,
+        family_status_ids=parse_int_csv(family_status_ids),
+        social_class_ids=parse_int_csv(social_class_ids),
+        nationality_ids=parse_int_csv(nationality_ids),
+        religion_ids=parse_int_csv(religion_ids),
+        education_ids=parse_int_csv(education_ids),
+        occupation_ids=parse_int_csv(occupation_ids),
+        political_party_ids=parse_int_csv(political_party_ids),
+    )
     author_service = AuthorService(db)
-    return author_service.get_all()
+    return author_service.get_all(filters)
 
 
 @router.get("/{id}")
@@ -38,3 +76,38 @@ async def create(author: AuthorDto, db: Session = Depends(get_db)):
         return created_author
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+# Taxonomies — simple name-only entities
+router.include_router(
+    make_named_taxonomy_router(FamilyStatus, "family_status_id"),
+    prefix="/family-statuses",
+)
+router.include_router(
+    make_named_taxonomy_router(SocialClass, "social_class_id"),
+    prefix="/social-classes",
+)
+router.include_router(
+    make_named_taxonomy_router(Nationality, "nationality_id"),
+    prefix="/nationalities",
+)
+router.include_router(
+    make_named_taxonomy_router(Religion, "religion_id"),
+    prefix="/religions",
+)
+router.include_router(
+    make_named_taxonomy_router(Education, "education_id"),
+    prefix="/educations",
+)
+router.include_router(
+    make_named_taxonomy_router(Occupation, "occupation_id"),
+    prefix="/occupations",
+)
+router.include_router(
+    make_named_taxonomy_router(PoliticalParty, "political_party_id"),
+    prefix="/political-parties",
+)
+router.include_router(
+    make_named_taxonomy_router(Card, "card_id"),
+    prefix="/cards",
+)

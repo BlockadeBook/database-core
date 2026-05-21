@@ -1,8 +1,22 @@
-from sqlalchemy import exists
+from sqlalchemy import exists, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.point.dtos import CoordinatesDto, PointDto
-from app.point.models import Point, PointCoordinates, PointSubType, PointType
+from app.point.dtos import (
+    CoordinatesDto,
+    PointDto,
+    PointFilterParams,
+    PointSubSubTypeDto,
+    PointSubTypeDto,
+    PointTypeDto,
+)
+from app.point.models import (
+    Point,
+    PointCoordinates,
+    PointSubSubType,
+    PointSubType,
+    PointType,
+    Rayon,
+)
 
 
 class PointService:
@@ -46,18 +60,60 @@ class PointService:
         self.db.refresh(point)
         return point
 
-    def get_all(self):
-        return (
-            self.db.query(Point)
-            .options(
-                joinedload(Point.rayon),
-                joinedload(Point.point_coordinates),
-                joinedload(Point.point_type),
-                joinedload(Point.point_subtype),
-                joinedload(Point.point_subsubtype),
-            )
-            .all()
+    def get_all(self, filters: PointFilterParams | None = None):
+        q = self.db.query(Point).options(
+            joinedload(Point.rayon),
+            joinedload(Point.point_coordinates),
+            joinedload(Point.point_type),
+            joinedload(Point.point_subtype),
+            joinedload(Point.point_subsubtype),
         )
+        if filters is None:
+            return q.all()
+
+        if filters.search:
+            pattern = f"%{filters.search}%"
+            q = q.filter(
+                or_(
+                    Point.name.ilike(pattern),
+                    Point.street.ilike(pattern),
+                    Point.description.ilike(pattern),
+                )
+            )
+        if filters.rayon_ids:
+            q = q.filter(Point.rayon_id.in_(filters.rayon_ids))
+        if filters.point_type_ids:
+            q = q.filter(Point.point_type_id.in_(filters.point_type_ids))
+        if filters.point_subtype_ids:
+            q = q.filter(Point.point_subtype_id.in_(filters.point_subtype_ids))
+        if filters.point_subsubtype_ids:
+            q = q.filter(Point.point_subsubtype_id.in_(filters.point_subsubtype_ids))
+        return q.all()
+
+    def create_point_type(self, dto: PointTypeDto) -> PointType:
+        item = PointType(
+            name=dto.name,
+            has_fixed_coordinates=dto.has_fixed_coordinates,
+            has_address=dto.has_address,
+        )
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def create_point_subtype(self, dto: PointSubTypeDto) -> PointSubType:
+        item = PointSubType(name=dto.name, point_type_id=dto.point_type_id)
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def create_point_subsubtype(self, dto: PointSubSubTypeDto) -> PointSubSubType:
+        item = PointSubSubType(name=dto.name, point_subtype_id=dto.point_subtype_id)
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
 
     def get_by_id(self, id: int, extended: bool):
         if not extended:
