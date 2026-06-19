@@ -18,4 +18,6 @@ class Base(DeclarativeBase):
 
 class ExtendedBaseClass(Base):
     __abstract__ = True
-    name: Mapped[str] = mapped_column(nullable=False, unique=True)
+    # 255, т.к. официальные названия категорий мест бывают длиннее 63 символов
+    # (напр. «Управления, тресты, проектно-строительные и торговые организации»).
+    name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False, unique=True)

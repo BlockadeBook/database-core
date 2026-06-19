@@ -30,7 +30,31 @@ def get_filters(db: Session = Depends(get_db)):
 def create(dto: PointDto, db: Session = Depends(get_db)):
     dto.validate_ids(db)
     service = PointService(db)
-    return service.create(dto)
+    try:
+        return service.create(dto)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@router.patch("/{id}")
+def update(id: int, dto: PointDto, db: Session = Depends(get_db)):
+    dto.validate_ids(db)
+    service = PointService(db)
+    res = service.update(id, dto)
+    if res is None:
+        raise HTTPException(404)
+    return res
+
+
+@router.delete("/{id}", status_code=204)
+def delete(id: int, db: Session = Depends(get_db)):
+    service = PointService(db)
+    try:
+        res = service.delete_point(id)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    if res is None:
+        raise HTTPException(404)
 
 
 @router.get("/")

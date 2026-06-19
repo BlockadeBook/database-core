@@ -27,6 +27,8 @@ class AuthorFilterParams(BaseModel):
     search: Optional[str] = None
     sex: Optional[SexEnum] = None
     has_children: Optional[bool] = None
+    birth_date_from: Optional[date] = None
+    birth_date_to: Optional[date] = None
     family_status_ids: List[int] = []
     social_class_ids: List[int] = []
     nationality_ids: List[int] = []
@@ -37,25 +39,29 @@ class AuthorFilterParams(BaseModel):
 
 
 class AuthorDto(BaseModel):
+    # Обязательна только фамилия. Остальное — необязательно.
     last_name: str
-    first_name: str
-    middle_name: str
-    sex: SexEnum
-    birth_date: date  # YYYY-MM-DD
-    biography: str
-    has_children: bool
-    family_status_id: int
-    social_class_ids: List[int]
-    nationality_ids: List[int]
-    religion_ids: List[int]
-    education_ids: List[int]
-    occupation_ids: List[int]
-    political_party_ids: List[int]
-    card_ids: List[int]
+    first_name: str | None = None
+    middle_name: str | None = None
+    sex: SexEnum | None = None
+    birth_date: date | None = None  # YYYY-MM-DD
+    death_date: date | None = None  # YYYY-MM-DD
+    biography: str | None = None
+    photo: str | None = None  # data URL (base64)
+    has_children: bool | None = None
+    family_status_id: int | None = None
+    social_class_ids: List[int] = []
+    nationality_ids: List[int] = []
+    religion_ids: List[int] = []
+    education_ids: List[int] = []
+    occupation_ids: List[int] = []
+    political_party_ids: List[int] = []
+    card_ids: List[int] = []
 
-    diary_started_at: date  # YYYY-MM-DD
-    diary_finished_at: date  # YYYY-MM-DD
-    diary_source: str
+    diary_started_at: date | None = None  # YYYY-MM-DD
+    diary_finished_at: date | None = None  # YYYY-MM-DD
+    diary_source: str | None = None  # «Публикация дневника»
+    diary_storage_place: str | None = None  # «Место хранения дневника»
 
     def validate_ids(self, db: Session) -> None:
         check_id_exists_raise(db, FamilyStatus, self.family_status_id)

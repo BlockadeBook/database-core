@@ -12,15 +12,19 @@ from app.point.models import Point
 
 class DiaryDto(BaseModel):
     # TODO: validate dates (min and max)
-    started_at: date  # YYYY-MM-DD
-    finished_at: date  # YYYY-MM-DD
-    source: str
+    started_at: date | None = None  # YYYY-MM-DD
+    finished_at: date | None = None  # YYYY-MM-DD
+    source: str | None = None
+    storage_place: str | None = None  # «Место хранения дневника»
     author_id: int
 
 
 class Note2PointDto(BaseModel):
     point_id: int
     description: str
+    # Координаты, заданные вручную для мест без фиксированной координаты.
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     def validate_ids(self, db: Session):
         check_id_exists_raise(db, Point, self.point_id)
@@ -28,8 +32,8 @@ class Note2PointDto(BaseModel):
 
 class NoteDto(BaseModel):
     author_id: int
-    note_type_id: int
-    temporality_id: int
+    note_type_ids: List[int] = []
+    temporality_ids: List[int] = []
     created_at: date  # YYYY-MM-DD
     citation: str
     source: str
@@ -38,8 +42,10 @@ class NoteDto(BaseModel):
 
     def validate_ids(self, db: Session):
         check_id_exists_raise(db, Author, self.author_id)
-        check_id_exists_raise(db, NoteType, self.note_type_id)
-        check_id_exists_raise(db, Temporality, self.temporality_id)
+        for note_type_id in self.note_type_ids:
+            check_id_exists_raise(db, NoteType, note_type_id)
+        for temporality_id in self.temporality_ids:
+            check_id_exists_raise(db, Temporality, temporality_id)
         for tag_id in self.tag_ids:
             check_id_exists_raise(db, Tag, tag_id)
         for note_to_point in self.note_to_points:

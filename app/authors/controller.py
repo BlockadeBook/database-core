@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,6 +34,8 @@ def get_all(
     search: Optional[str] = None,
     sex: Optional[SexEnum] = None,
     has_children: Optional[bool] = None,
+    birth_date_from: Optional[date] = None,
+    birth_date_to: Optional[date] = None,
     family_status_ids: Optional[str] = None,
     social_class_ids: Optional[str] = None,
     nationality_ids: Optional[str] = None,
@@ -46,6 +49,8 @@ def get_all(
         search=search,
         sex=sex,
         has_children=has_children,
+        birth_date_from=birth_date_from,
+        birth_date_to=birth_date_to,
         family_status_ids=parse_int_csv(family_status_ids),
         social_class_ids=parse_int_csv(social_class_ids),
         nationality_ids=parse_int_csv(nationality_ids),
@@ -76,6 +81,30 @@ async def create(author: AuthorDto, db: Session = Depends(get_db)):
         return created_author
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+@router.patch("/{id}")
+async def update(id: int, author: AuthorDto, db: Session = Depends(get_db)):
+    author.validate_ids(db)
+    author_service = AuthorService(db)
+    try:
+        res = author_service.update(id, author)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    if res is None:
+        raise HTTPException(404)
+    return res
+
+
+@router.delete("/{id}", status_code=204)
+async def delete(id: int, db: Session = Depends(get_db)):
+    author_service = AuthorService(db)
+    try:
+        res = author_service.delete_author(id)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    if res is None:
+        raise HTTPException(404)
 
 
 # Taxonomies — simple name-only entities

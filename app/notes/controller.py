@@ -68,6 +68,36 @@ def create(note: NoteDto, db: Session = Depends(get_db)):
         raise HTTPException(400, str(e))
 
 
+@router.patch("/{id}")
+def update(id: int, note: NoteDto, db: Session = Depends(get_db)):
+    note.validate_ids(db)
+    service = NoteService(db)
+    try:
+        res = service.update_note(id, note)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    if res is None:
+        raise HTTPException(404)
+    return res
+
+
+@router.get("/{id}/edit")
+def get_for_edit(id: int, db: Session = Depends(get_db)):
+    """Полный состав свидетельства для предзаполнения формы редактирования."""
+    service = NoteService(db)
+    res = service.get_note_for_edit(id)
+    if res is None:
+        raise HTTPException(404)
+    return res
+
+
+@router.delete("/{id}", status_code=204)
+def delete(id: int, db: Session = Depends(get_db)):
+    service = NoteService(db)
+    if not service.delete_note(id):
+        raise HTTPException(404)
+
+
 @router.get("/detailed/{id}")
 def get_detailed(id: int, db: Session = Depends(get_db)):
     service = NoteService(db)
@@ -82,6 +112,21 @@ def get_detailed(id: int, db: Session = Depends(get_db)):
 def create_tag(tag: TagDto, db: Session = Depends(get_db)):
     service = NoteService(db)
     return service.create_tag(tag)
+
+
+# Удаление тега с проверкой использования. Определено ДО подключения generic
+# taxonomy-роутера ниже, поэтому перекрывает его DELETE /tags/{id}: тег,
+# привязанный к свидетельствам, удалить нельзя (иначе SQLAlchemy молча убрал
+# бы связи note_to_tag).
+@router.delete("/tags/{id}", status_code=204)
+def delete_tag(id: int, db: Session = Depends(get_db)):
+    service = NoteService(db)
+    try:
+        res = service.delete_tag(id)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    if res is None:
+        raise HTTPException(404)
 
 
 # Taxonomies — POST /notes/tags/ (trailing slash) plus PATCH/DELETE/list

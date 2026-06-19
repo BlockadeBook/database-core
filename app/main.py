@@ -24,7 +24,6 @@ def init_db():
 init_db()
 app = FastAPI()
 
-# TODO: PATCH endpoints
 app.include_router(authors_router)
 app.include_router(notes_router)
 app.include_router(points_router)

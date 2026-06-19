@@ -95,16 +95,22 @@ class AuthorToPoint(Base):
 class Author(Base):
     __tablename__ = "author"
     author_id: Mapped[intpk]
-    first_name: Mapped[namestr]
+    # Обязательна только фамилия. Остальные поля автора — необязательные.
+    first_name: Mapped[namestr] = mapped_column(nullable=True)
     middle_name: Mapped[namestr] = mapped_column(nullable=True)
     last_name: Mapped[namestr]
-    sex: Mapped[str] = mapped_column(String(1), nullable=False)
-    birth_date: Mapped[datetime.date] = mapped_column(nullable=False)
+    sex: Mapped[str] = mapped_column(String(1), nullable=True)
+    birth_date: Mapped[datetime.date] = mapped_column(nullable=True)
+    # Дата смерти — необязательная (часто неизвестна).
+    death_date: Mapped[datetime.date] = mapped_column(nullable=True)
     family_status_id: Mapped[int] = mapped_column(
-        ForeignKey("family_status.family_status_id")
+        ForeignKey("family_status.family_status_id"), nullable=True
     )
-    has_children: Mapped[bool] = mapped_column(nullable=False)
-    biography: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    has_children: Mapped[bool] = mapped_column(nullable=True)
+    # biography: без NOT NULL и без unique (пустые биографии не должны конфликтовать)
+    biography: Mapped[str] = mapped_column(Text, nullable=True)
+    # Фотография автора как data URL (base64). TEXT — изображение может быть большим.
+    photo: Mapped[str] = mapped_column(Text, nullable=True)
 
     family_status: Mapped["FamilyStatus"] = relationship(back_populates="authors")
     diaries: Mapped[List["Diary"]] = relationship(back_populates="author")

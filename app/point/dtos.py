@@ -8,16 +8,16 @@ from app.point.models import PointSubSubType, PointSubType, PointType, Rayon
 
 
 class PointDto(BaseModel):
-    rayon_id: int
-    street: str
-    building: str
-    latitude: float
-    longitude: float | None
+    rayon_id: int | None = None
+    street: str = ""
+    building: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
     point_type_id: int
-    point_subtype_id: int | None
-    point_subsubtype_id: int | None
+    point_subtype_id: int | None = None
+    point_subsubtype_id: int | None = None
     name: str
-    description: str | None
+    description: str | None = None
 
     def validate_ids(self, db: Session) -> None:
         check_id_exists_raise(db, Rayon, self.rayon_id)

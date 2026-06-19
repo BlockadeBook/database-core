@@ -60,7 +60,9 @@ class PointSubSubType(ExtendedBaseClass):
 class Point(ExtendedBaseClass):
     __tablename__ = "point"
     point_id: Mapped[intpk]
-    rayon_id: Mapped[int] = mapped_column(ForeignKey("rayon.rayon_id"))
+    rayon_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("rayon.rayon_id"), nullable=True
+    )
     street: Mapped[str] = mapped_column(VARCHAR(31))
     building: Mapped[str] = mapped_column(VARCHAR(15))
     point_type_id: Mapped[int] = mapped_column(
