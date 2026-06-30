@@ -6,7 +6,15 @@ from sqlalchemy.orm import Session
 
 from app.authors.models import Author
 from app.base.utils import check_id_exists_raise
-from app.notes.models import NoteType, Tag, Temporality
+from app.notes.models import (
+    CityName,
+    GeoName,
+    NoteType,
+    Organization,
+    Personality,
+    Tag,
+    Temporality,
+)
 from app.point.models import Point
 
 
@@ -39,6 +47,15 @@ class NoteDto(BaseModel):
     source: str
     tag_ids: List[int]
     note_to_points: List[Note2PointDto]
+    # Новые необязательные графы. Значения по умолчанию делают поля
+    # обратносовместимыми: старые клиенты и loader, не присылающие их,
+    # продолжают работать.
+    localization_accuracy: Optional[str] = None  # «Эллипсис» | «Точное место»
+    place_type: Optional[str] = None
+    organization_ids: List[int] = []
+    city_name_ids: List[int] = []
+    geo_name_ids: List[int] = []
+    personality_ids: List[int] = []
 
     def validate_ids(self, db: Session):
         check_id_exists_raise(db, Author, self.author_id)
@@ -48,6 +65,14 @@ class NoteDto(BaseModel):
             check_id_exists_raise(db, Temporality, temporality_id)
         for tag_id in self.tag_ids:
             check_id_exists_raise(db, Tag, tag_id)
+        for organization_id in self.organization_ids:
+            check_id_exists_raise(db, Organization, organization_id)
+        for city_name_id in self.city_name_ids:
+            check_id_exists_raise(db, CityName, city_name_id)
+        for geo_name_id in self.geo_name_ids:
+            check_id_exists_raise(db, GeoName, geo_name_id)
+        for personality_id in self.personality_ids:
+            check_id_exists_raise(db, Personality, personality_id)
         for note_to_point in self.note_to_points:
             note_to_point.validate_ids(db)
 
@@ -63,6 +88,10 @@ class NoteFilterParams(BaseModel):
     diary_ids: List[int] = []
     author_ids: List[int] = []
     tag_ids: List[int] = []
+    # Новые тегоподобные фильтры (персоналии в фильтрах не участвуют).
+    organization_ids: List[int] = []
+    city_name_ids: List[int] = []
+    geo_name_ids: List[int] = []
     point_ids: List[int] = []
     date_from: Optional[date] = None
     date_to: Optional[date] = None

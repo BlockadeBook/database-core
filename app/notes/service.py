@@ -10,13 +10,21 @@ from app.notes.dtos import (
     TagDto,
 )
 from app.notes.models import (
+    CityName,
     Diary,
+    GeoName,
     Note,
+    NoteToCityName,
+    NoteToGeoName,
     NoteToNoteType,
+    NoteToOrganization,
+    NoteToPersonality,
     NoteToPoint,
     NoteToTag,
     NoteToTemporality,
     NoteType,
+    Organization,
+    Personality,
     Tag,
     Temporality,
 )
@@ -34,6 +42,13 @@ class NoteService:
             "tags": self.db.query(Tag).all(),
             "note_types": self.db.query(NoteType).all(),
             "temporalities": self.db.query(Temporality).all(),
+            # Новые справочники. organizations/city_names/geo_names выводятся
+            # в фильтры карты; personalities — только для выбора в админке
+            # (в фильтры карты не попадают).
+            "organizations": self.db.query(Organization).all(),
+            "city_names": self.db.query(CityName).all(),
+            "geo_names": self.db.query(GeoName).all(),
+            "personalities": self.db.query(Personality).all(),
         }
 
     @staticmethod
@@ -89,6 +104,18 @@ class NoteService:
             )
         if filters.tag_ids:
             q = q.join(NoteToTag).filter(NoteToTag.tag_id.in_(filters.tag_ids))
+        if filters.organization_ids:
+            q = q.join(NoteToOrganization).filter(
+                NoteToOrganization.organization_id.in_(filters.organization_ids)
+            )
+        if filters.city_name_ids:
+            q = q.join(NoteToCityName).filter(
+                NoteToCityName.city_name_id.in_(filters.city_name_ids)
+            )
+        if filters.geo_name_ids:
+            q = q.join(NoteToGeoName).filter(
+                NoteToGeoName.geo_name_id.in_(filters.geo_name_ids)
+            )
         if filters.point_ids:
             q = q.join(NoteToPoint).filter(NoteToPoint.point_id.in_(filters.point_ids))
         if filters.date_from:
@@ -213,6 +240,8 @@ class NoteService:
             created_at=dto.created_at,
             citation=dto.citation,
             source=dto.source,
+            localization_accuracy=dto.localization_accuracy,
+            place_type=dto.place_type,
         )
         self.db.add(note)
         self.db.commit()
@@ -241,6 +270,28 @@ class NoteService:
             )
 
         note.tags.extend(self.db.query(Tag).filter(Tag.tag_id.in_(dto.tag_ids)).all())
+
+        # Новые тегоподобные графы.
+        note.organizations.extend(
+            self.db.query(Organization)
+            .filter(Organization.organization_id.in_(dto.organization_ids))
+            .all()
+        )
+        note.city_names.extend(
+            self.db.query(CityName)
+            .filter(CityName.city_name_id.in_(dto.city_name_ids))
+            .all()
+        )
+        note.geo_names.extend(
+            self.db.query(GeoName)
+            .filter(GeoName.geo_name_id.in_(dto.geo_name_ids))
+            .all()
+        )
+        note.personalities.extend(
+            self.db.query(Personality)
+            .filter(Personality.personality_id.in_(dto.personality_ids))
+            .all()
+        )
 
         self.db.commit()
         self.db.refresh(note)
@@ -272,6 +323,8 @@ class NoteService:
         note.created_at = dto.created_at
         note.citation = dto.citation
         note.source = dto.source
+        note.localization_accuracy = dto.localization_accuracy
+        note.place_type = dto.place_type
 
         # Тип/темпоральность/теги — перезаписываем целиком новым набором.
         note.note_types = (
@@ -285,6 +338,27 @@ class NoteService:
             .all()
         )
         note.tags = self.db.query(Tag).filter(Tag.tag_id.in_(dto.tag_ids)).all()
+        # Новые тегоподобные графы — также перезаписываем целиком.
+        note.organizations = (
+            self.db.query(Organization)
+            .filter(Organization.organization_id.in_(dto.organization_ids))
+            .all()
+        )
+        note.city_names = (
+            self.db.query(CityName)
+            .filter(CityName.city_name_id.in_(dto.city_name_ids))
+            .all()
+        )
+        note.geo_names = (
+            self.db.query(GeoName)
+            .filter(GeoName.geo_name_id.in_(dto.geo_name_ids))
+            .all()
+        )
+        note.personalities = (
+            self.db.query(Personality)
+            .filter(Personality.personality_id.in_(dto.personality_ids))
+            .all()
+        )
 
         # Привязки к местам — удаляем старые и кладём новые.
         self.db.query(NoteToPoint).filter(NoteToPoint.note_id == id).delete()
@@ -312,6 +386,10 @@ class NoteService:
                 joinedload(Note.diary),
                 joinedload(Note.note_types),
                 joinedload(Note.temporalities),
+                joinedload(Note.organizations),
+                joinedload(Note.city_names),
+                joinedload(Note.geo_names),
+                joinedload(Note.personalities),
             )
             .filter(Note.note_id == id)
             .first()
@@ -330,6 +408,12 @@ class NoteService:
             "citation": note.citation,
             "source": note.source,
             "tag_ids": [t.tag_id for t in note.tags],
+            "localization_accuracy": note.localization_accuracy,
+            "place_type": note.place_type,
+            "organization_ids": [o.organization_id for o in note.organizations],
+            "city_name_ids": [c.city_name_id for c in note.city_names],
+            "geo_name_ids": [g.geo_name_id for g in note.geo_names],
+            "personality_ids": [p.personality_id for p in note.personalities],
             "note_to_points": [
                 {
                     "point_id": n.point_id,
@@ -345,9 +429,18 @@ class NoteService:
         note = self.db.query(Note).filter(Note.note_id == id).first()
         if note is None:
             return False
-        # Сначала убираем связи (теги и привязки к местам), затем само свидетельство.
+        # Сначала убираем связи (теги, новые графы и привязки к местам),
+        # затем само свидетельство.
         self.db.query(NoteToPoint).filter(NoteToPoint.note_id == id).delete()
         self.db.query(NoteToTag).filter(NoteToTag.note_id == id).delete()
+        self.db.query(NoteToOrganization).filter(
+            NoteToOrganization.note_id == id
+        ).delete()
+        self.db.query(NoteToCityName).filter(NoteToCityName.note_id == id).delete()
+        self.db.query(NoteToGeoName).filter(NoteToGeoName.note_id == id).delete()
+        self.db.query(NoteToPersonality).filter(
+            NoteToPersonality.note_id == id
+        ).delete()
         self.db.delete(note)
         self.db.commit()
         return True
@@ -389,6 +482,31 @@ class NoteService:
                 "Сначала снимите его со свидетельств."
             )
         self.db.delete(tag)
+        self.db.commit()
+        return True
+
+    def delete_taxonomy_if_unused(
+        self, model, pk_field: str, join_model, join_fk: str, id: int, label: str
+    ):
+        """Удаление элемента тегоподобного справочника с проверкой
+        использования (как delete_tag). Логика идентична для organization /
+        city_name / geo_name / personality, поэтому вынесена в один метод.
+
+        None — элемента нет; ValueError — элемент привязан к свидетельствам."""
+        item = self.db.query(model).filter(getattr(model, pk_field) == id).first()
+        if item is None:
+            return None
+        used = (
+            self.db.query(join_model)
+            .filter(getattr(join_model, join_fk) == id)
+            .count()
+        )
+        if used > 0:
+            raise ValueError(
+                f"{label} используется в свидетельствах ({used}). "
+                "Сначала снимите значение со свидетельств."
+            )
+        self.db.delete(item)
         self.db.commit()
         return True
 
