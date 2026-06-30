@@ -33,6 +33,41 @@ class NoteToTemporality(Base):
     )
 
 
+# Новые тегоподобные графы (M2M, полностью аналогично note_to_tag).
+# Добавлены позже; на существующие данные не влияют — старые свидетельства
+# просто не имеют связей в этих таблицах.
+class NoteToOrganization(Base):
+    __tablename__ = "note_to_organization"
+    note_id: Mapped[int] = mapped_column(ForeignKey("note.note_id"), primary_key=True)
+    organization_id: Mapped[int] = mapped_column(
+        ForeignKey("organization.organization_id"), primary_key=True
+    )
+
+
+class NoteToCityName(Base):
+    __tablename__ = "note_to_city_name"
+    note_id: Mapped[int] = mapped_column(ForeignKey("note.note_id"), primary_key=True)
+    city_name_id: Mapped[int] = mapped_column(
+        ForeignKey("city_name.city_name_id"), primary_key=True
+    )
+
+
+class NoteToGeoName(Base):
+    __tablename__ = "note_to_geo_name"
+    note_id: Mapped[int] = mapped_column(ForeignKey("note.note_id"), primary_key=True)
+    geo_name_id: Mapped[int] = mapped_column(
+        ForeignKey("geo_name.geo_name_id"), primary_key=True
+    )
+
+
+class NoteToPersonality(Base):
+    __tablename__ = "note_to_personality"
+    note_id: Mapped[int] = mapped_column(ForeignKey("note.note_id"), primary_key=True)
+    personality_id: Mapped[int] = mapped_column(
+        ForeignKey("personality.personality_id"), primary_key=True
+    )
+
+
 class NoteToPoint(Base):
     __tablename__ = "note_to_point"
     note_id: Mapped[int] = mapped_column(ForeignKey("note.note_id"), primary_key=True)
@@ -57,6 +92,13 @@ class Note(Base):
     # (как и diary.source). VARCHAR(63) обрезал длинные ссылки при сохранении.
     source: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # Новые необязательные графы свидетельства (храним, никуда не выводим):
+    #   localization_accuracy — «Точность локализации» («Эллипсис»/«Точное место»);
+    #   place_type — «Тип места» (место жительства/работы/… или «Другое»).
+    # Nullable: у уже заведённых свидетельств остаются NULL.
+    localization_accuracy: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    place_type: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Тип свидетельства и темпоральность — множественный выбор (M2M, как теги).
     note_types: Mapped[List["NoteType"]] = relationship(
         secondary=NoteToNoteType.__tablename__, back_populates="notes"
@@ -67,6 +109,19 @@ class Note(Base):
     diary: Mapped["Diary"] = relationship(back_populates="notes")
     tags: Mapped[List["Tag"]] = relationship(
         secondary=NoteToTag.__tablename__, back_populates="notes"
+    )
+    # Новые тегоподобные графы.
+    organizations: Mapped[List["Organization"]] = relationship(
+        secondary=NoteToOrganization.__tablename__, back_populates="notes"
+    )
+    city_names: Mapped[List["CityName"]] = relationship(
+        secondary=NoteToCityName.__tablename__, back_populates="notes"
+    )
+    geo_names: Mapped[List["GeoName"]] = relationship(
+        secondary=NoteToGeoName.__tablename__, back_populates="notes"
+    )
+    personalities: Mapped[List["Personality"]] = relationship(
+        secondary=NoteToPersonality.__tablename__, back_populates="notes"
     )
     points: Mapped[List["Point"]] = relationship(
         secondary=NoteToPoint.__tablename__, back_populates="notes"
@@ -92,6 +147,39 @@ class Tag(ExtendedBaseClass):
     tag_id: Mapped[intpk]
     notes: Mapped[List["Note"]] = relationship(
         secondary=NoteToTag.__tablename__, back_populates="tags"
+    )
+
+
+# Новые справочники (id + name), полностью аналогичны Tag.
+class Organization(ExtendedBaseClass):
+    __tablename__ = "organization"
+    organization_id: Mapped[intpk]
+    notes: Mapped[List["Note"]] = relationship(
+        secondary=NoteToOrganization.__tablename__, back_populates="organizations"
+    )
+
+
+class CityName(ExtendedBaseClass):
+    __tablename__ = "city_name"
+    city_name_id: Mapped[intpk]
+    notes: Mapped[List["Note"]] = relationship(
+        secondary=NoteToCityName.__tablename__, back_populates="city_names"
+    )
+
+
+class GeoName(ExtendedBaseClass):
+    __tablename__ = "geo_name"
+    geo_name_id: Mapped[intpk]
+    notes: Mapped[List["Note"]] = relationship(
+        secondary=NoteToGeoName.__tablename__, back_populates="geo_names"
+    )
+
+
+class Personality(ExtendedBaseClass):
+    __tablename__ = "personality"
+    personality_id: Mapped[intpk]
+    notes: Mapped[List["Note"]] = relationship(
+        secondary=NoteToPersonality.__tablename__, back_populates="personalities"
     )
 
 

@@ -8,7 +8,19 @@ from app.base.query_params import parse_int_csv
 from app.base.taxonomy import make_named_taxonomy_router
 from app.database import get_db
 from app.notes.dtos import NoteDto, NoteFilterParams, TagDto
-from app.notes.models import NoteType, Tag, Temporality
+from app.notes.models import (
+    CityName,
+    GeoName,
+    NoteToCityName,
+    NoteToGeoName,
+    NoteToOrganization,
+    NoteToPersonality,
+    NoteType,
+    Organization,
+    Personality,
+    Tag,
+    Temporality,
+)
 from app.notes.service import NoteService
 
 router = APIRouter(prefix="/notes")
@@ -28,6 +40,9 @@ def get_all(
     diary_ids: Optional[str] = None,
     author_ids: Optional[str] = None,
     tag_ids: Optional[str] = None,
+    organization_ids: Optional[str] = None,
+    city_name_ids: Optional[str] = None,
+    geo_name_ids: Optional[str] = None,
     point_ids: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
@@ -40,6 +55,9 @@ def get_all(
         diary_ids=parse_int_csv(diary_ids),
         author_ids=parse_int_csv(author_ids),
         tag_ids=parse_int_csv(tag_ids),
+        organization_ids=parse_int_csv(organization_ids),
+        city_name_ids=parse_int_csv(city_name_ids),
+        geo_name_ids=parse_int_csv(geo_name_ids),
         point_ids=parse_int_csv(point_ids),
         date_from=date_from,
         date_to=date_to,
@@ -129,6 +147,37 @@ def delete_tag(id: int, db: Session = Depends(get_db)):
         raise HTTPException(404)
 
 
+# Новые тегоподобные справочники: удаление с проверкой использования
+# (как у тегов), объявленное ДО подключения generic-роутеров, чтобы
+# перекрыть их DELETE /<prefix>/{id} (иначе SQLAlchemy молча убрал бы связи).
+_NEW_TAXONOMIES = [
+    ("organizations", Organization, "organization_id", NoteToOrganization, "Организация"),
+    ("city-names", CityName, "city_name_id", NoteToCityName, "Городское название"),
+    ("geo-names", GeoName, "geo_name_id", NoteToGeoName, "Географическое название"),
+    ("personalities", Personality, "personality_id", NoteToPersonality, "Персоналия"),
+]
+
+
+def _register_taxonomy_delete(prefix, model, pk_field, join_model, label):
+    join_fk = pk_field  # имя FK-колонки в join-таблице совпадает с pk справочника
+
+    @router.delete(f"/{prefix}/{{id}}", status_code=204)
+    def delete_item(id: int, db: Session = Depends(get_db)):
+        service = NoteService(db)
+        try:
+            res = service.delete_taxonomy_if_unused(
+                model, pk_field, join_model, join_fk, id, label
+            )
+        except ValueError as e:
+            raise HTTPException(409, str(e))
+        if res is None:
+            raise HTTPException(404)
+
+
+for _prefix, _model, _pk, _join, _label in _NEW_TAXONOMIES:
+    _register_taxonomy_delete(_prefix, _model, _pk, _join, _label)
+
+
 # Taxonomies — POST /notes/tags/ (trailing slash) plus PATCH/DELETE/list
 router.include_router(make_named_taxonomy_router(Tag, "tag_id"), prefix="/tags")
 router.include_router(
@@ -137,4 +186,20 @@ router.include_router(
 router.include_router(
     make_named_taxonomy_router(Temporality, "temporality_id"),
     prefix="/temporalities",
+)
+# Новые тегоподобные справочники (list/create/patch через generic-роутер;
+# DELETE перекрыт выше проверкой использования).
+router.include_router(
+    make_named_taxonomy_router(Organization, "organization_id"),
+    prefix="/organizations",
+)
+router.include_router(
+    make_named_taxonomy_router(CityName, "city_name_id"), prefix="/city-names"
+)
+router.include_router(
+    make_named_taxonomy_router(GeoName, "geo_name_id"), prefix="/geo-names"
+)
+router.include_router(
+    make_named_taxonomy_router(Personality, "personality_id"),
+    prefix="/personalities",
 )
