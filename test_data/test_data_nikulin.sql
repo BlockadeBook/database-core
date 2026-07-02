@@ -182,7 +182,8 @@ INSERT INTO point_type(point_type_id, name, has_fixed_coordinates, has_address) 
     (11, 'Доски объявлений. Афиши. Рекламные щиты', TRUE, FALSE),
     (12, 'Специальные знаки', TRUE, FALSE),
     (13, 'Монументальная и визуальная пропаганда', TRUE, FALSE),
-    (14, 'Проруби', FALSE, FALSE);
+    (14, 'Проруби', FALSE, FALSE),
+    (15, 'Рынки', TRUE, TRUE);
 
 -- Тип учреждения/предприятия (UI). Все — дети «Учреждение/предприятие» (id 2).
 INSERT INTO point_subtype(point_subtype_id, name, point_type_id) VALUES

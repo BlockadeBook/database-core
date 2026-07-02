@@ -13,5 +13,7 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 # Копируем весь код в рабочую директорию
 COPY ./scripts /code/scripts
 COPY ./app /code/app
+# Миграции применяются автоматически при старте (см. app/migrations_runner.py)
+COPY ./migrations /code/migrations
 
 CMD ["./scripts/start-dev.sh"]
